@@ -17,6 +17,27 @@
     box-shadow:0 2px 8px rgba(0,0,0,0.15); border:1px solid rgba(0,0,0,0.06);
   }
   #navBar a:hover { background:#fff; }
+  #navBar button {
+    background:rgba(255,255,255,0.9); color:#333; border:1px solid rgba(0,0,0,0.06);
+    font-size:12px; padding:7px 12px; border-radius:8px; cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,0.15); font-family:inherit;
+  }
+  #navBar button:hover { background:#fff; }
+  #instructionsOverlay {
+    display:none; position:absolute; inset:0; background:rgba(0,0,0,0.45);
+    z-index:30; align-items:center; justify-content:center;
+  }
+  #instructionsOverlay.open { display:flex; }
+  #instructionsBox {
+    background:#fff; border-radius:10px; padding:20px; max-width:420px; max-height:70vh;
+    overflow-y:auto; box-shadow:0 10px 40px rgba(0,0,0,0.3); position:relative;
+  }
+  #instructionsBox h3 { margin:0 0 10px 0; font-size:15px; color:#1f2937; }
+  #instructionsBox p { margin:0; font-size:13px; line-height:1.5; color:#333; white-space:pre-wrap; }
+  #instructionsCloseBtn {
+    position:absolute; top:10px; right:12px; background:none; border:none;
+    font-size:18px; cursor:pointer; color:#888; font-family:inherit;
+  }
   .callout-label {
     position:absolute; transform: translate(-50%, -145%);
     background:rgba(0,0,0,0.68); color:#fff; padding:10px 12px; border-radius:8px;
@@ -88,7 +109,15 @@
   <div id="canvas-container"></div>
   <div id="loading">Loading…</div>
   <div id="navBar"></div>
+  <div id="instructionsOverlay">
+    <div id="instructionsBox">
+      <button id="instructionsCloseBtn">&times;</button>
+      <h3>Instructions</h3>
+      <p id="instructionsText"></p>
+    </div>
+  </div>
   <div id="countdownDisplay" style="display:none; position:absolute; left:50%; bottom:28px; transform:translateX(-50%); font-size:48px; font-weight:700; color:#fff; background:rgba(0,0,0,0.55); border-radius:12px; padding:16px 24px; z-index:20; align-items:center; justify-content:center;"></div>
+  <div id="navHint" style="position:absolute; bottom:6px; left:50%; transform:translateX(-50%); font-size:8px; font-family:'Quicksand',sans-serif; color:rgba(0,0,0,0.45); z-index:5; white-space:nowrap; pointer-events:none;">Drag to rotate &bull; Right-click drag to pan &bull; Scroll to zoom</div>
 </div>
 
 <script type="importmap">
@@ -105,7 +134,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const EMBEDDED_PACKAGE = {"formatVersion":1,"shading":{"background":"#eceef2","exposure":1.8,"toneMapping":"Linear","keyLightIntensity":3.1,"fillLightIntensity":1.4,"hemiLightIntensity":1.1,"lightAzimuth":36,"lightElevation":31,"shadowsEnabled":false},"callouts":[{"x":-0.013689398300806947,"y":1.2217937852276552,"z":-0.023195848640497604,"title":"Abort Switch","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.22208136846224033,"y":1.226210149909286,"z":-0.02381671180572479,"title":"Key Maintenance Switch","description":"This device turns the system on/off."},{"x":-0.15746303242907309,"y":1.2259745181532014,"z":-0.019243665455820444,"title":"Pull Station","description":"This device activates the system.","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.16498710718996007,"y":1.9028915088891547,"z":-0.04447545281230662,"title":"Mini-Horn","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}},{"x":0.156870498226368,"y":2.024298074238363,"z":-0.047427663241021364,"title":"Horn/Strobe","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}},{"x":-0.0597703230971324,"y":2.2938036878127064,"z":-0.07565648030797166,"title":"Nozzle","description":""},{"x":0.1859246132164218,"y":1.36207608391197,"z":0.08807137161321271,"title":"Fire Suppression Control Panel","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}},{"x":0.1846982349967658,"y":1.3636771305026705,"z":0.08807137160264308,"title":"Fire Suppression Control Panel","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.16598147963885385,"y":1.9050418237108528,"z":-0.044475453503810713,"title":"Mini-Horn","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.15991158567245312,"y":2.019103742947628,"z":-0.04924803206614417,"title":"Horn/Strobe","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":-0.23995231096120057,"y":1.0484196313320877,"z":-0.007950955007429518,"title":"Pull/Abort Station","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}}],"optionGroups":[{"label":"Fire Suppression Control Panels","anchor":{"x":-0.008360734816939889,"y":1.4114330200995266,"z":0.08807137128738077},"choices":[{"label":"Potter","partNames":["panel_potter"]},{"label":"FireLite","partNames":["panel_firelite"]},{"label":"FCV","partNames":["panel_FCV"]}]},{"label":"Cylinders","anchor":{"x":0.007927579973816455,"y":0.5705335192371259,"z":0.3638092374326061},"choices":[{"label":"42lb.","partNames":["42"]},{"label":"76lb.","partNames":["76"]},{"label":"164lb.","partNames":["164"]},{"label":"322lb.","partNames":["322"]}]}],"effects":[{"partName":"MCV001","actions":[{"type":"systemToggle","targets":"Cylinder343, Cylinder344, panel_potter, panel_firelite","color":"#0c2c07","brightness":0.2}]},{"partName":"activator","actions":[{"type":"gas","target":"Nozzle_Spray","delaySeconds":10,"durationSeconds":10,"color":"#ffee88","brightness":1.5,"strobeTarget":"flasher"}]}],"gasSettings":{"direction":"out","spread":0.3,"speed":0.35,"count":55,"intervalMs":50,"coneAngle":155,"facingAngle":0,"particleSize":0.38,"maxDistance":20},"flashSettings":{"pulseIntervalMs":400,"pulseDurationMs":250,"intensity":6,"color":"#ffffff"},"abortPartName":"Abort_POT, Abort_NGB"};
+const EMBEDDED_PACKAGE = {"formatVersion":1,"shading":{"background":"#eceef2","exposure":1.8,"toneMapping":"Linear","keyLightIntensity":3.1,"fillLightIntensity":1.4,"hemiLightIntensity":1.1,"lightAzimuth":36,"lightElevation":31,"shadowsEnabled":false},"callouts":[{"x":-0.013689398300806947,"y":1.2217937852276552,"z":-0.023195848640497604,"title":"Abort Switch","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.22208136846224033,"y":1.226210149909286,"z":-0.02381671180572479,"title":"Key Maintenance Switch","description":"This device turns the system on/off."},{"x":-0.15746303242907309,"y":1.2259745181532014,"z":-0.019243665455820444,"title":"Pull Station","description":"This device activates the system.","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.16498710718996007,"y":1.9028915088891547,"z":-0.04447545281230662,"title":"Mini-Horn","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}},{"x":0.156870498226368,"y":2.024298074238363,"z":-0.047427663241021364,"title":"Horn/Strobe","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}},{"x":-0.0597703230971324,"y":2.2938036878127064,"z":-0.07565648030797166,"title":"Nozzle","description":""},{"x":0.1859246132164218,"y":1.36207608391197,"z":0.08807137161321271,"title":"Fire Suppression Control Panel","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}},{"x":0.1846982349967658,"y":1.3636771305026705,"z":0.08807137160264308,"title":"Fire Suppression Control Panel","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.16598147963885385,"y":1.9050418237108528,"z":-0.044475453503810713,"title":"Mini-Horn","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.15991158567245312,"y":2.019103742947628,"z":-0.04924803206614417,"title":"Horn/Strobe","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":-0.23995231096120057,"y":1.0484196313320877,"z":-0.007950955007429518,"title":"Pull/Abort Station","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}}],"optionGroups":[{"label":"Fire Suppression Control Panels","anchor":{"x":-0.008360734816939889,"y":1.4114330200995266,"z":0.08807137128738077},"choices":[{"label":"Potter","partNames":["panel_potter"]},{"label":"FireLite","partNames":["panel_firelite"]},{"label":"FCV","partNames":["panel_FCV"]}]},{"label":"Cylinders","anchor":{"x":0.007927579973816455,"y":0.5705335192371259,"z":0.3638092374326061},"choices":[{"label":"42lb.","partNames":["42"]},{"label":"76lb.","partNames":["76"]},{"label":"164lb.","partNames":["164"]},{"label":"322lb.","partNames":["322"]}]}],"effects":[{"partName":"MCV001","actions":[{"type":"systemToggle","targets":"Cylinder343, Cylinder344, panel_potter, panel_firelite","color":"#0c2c07","brightness":0.2,"disabledTargets":"Cylinder343, Cylinder344, panel_potter, panel_firelite","disabledColor":"#503107","disabledBrightness":0.1}]},{"partName":"activator","actions":[{"type":"gas","target":"Nozzle_Spray","delaySeconds":10,"durationSeconds":10,"color":"#ffee88","brightness":1.5,"strobeTarget":"flasher"}]}],"gasSettings":{"direction":"out","spread":0.3,"speed":0.35,"count":55,"intervalMs":50,"coneAngle":155,"facingAngle":0,"particleSize":0.38,"maxDistance":20},"flashSettings":{"pulseIntervalMs":400,"pulseDurationMs":250,"intensity":6,"color":"#ffffff"},"abortPartName":"Abort_POT, Abort_NGB"};
 const gasSettings = Object.assign({ direction: 'up', spread: 0.6, speed: 0.8, count: 16, intervalMs: 0, coneAngle: 360, facingAngle: 0, particleSize: 0.12, maxDistance: 1 }, EMBEDDED_PACKAGE.gasSettings || {});
 const flashSettings = Object.assign({ pulseIntervalMs: 400, pulseDurationMs: 250, intensity: 6, color: '#ffffff' }, EMBEDDED_PACKAGE.flashSettings || {});
 let abortPartName = EMBEDDED_PACKAGE.abortPartName || '';
@@ -476,7 +505,7 @@ function runDelayedGas(model, action, trig) {
 // matching "Strobe off" (or a Reset) action stops it, matching how a real
 // fire alarm strobe behaves (on for the whole alarm, not for a fixed time).
 let activeStrobes = {}; // key -> intervalId
-let systemOn = false; // gates whether gas discharge is allowed to fire
+let systemMode = 'off'; // 'off' | 'ready' | 'disabled' — gas only fires while 'ready'
 
 function startStrobe(worldPoint, key) {
   if (activeStrobes[key]) return; // already strobing
@@ -497,7 +526,7 @@ function resetSystem(model) {
   activeCountdownState = null;
   hideCountdown();
   stopAllStrobes();
-  systemOn = false;
+  systemMode = 'off';
 }
 
 // Runs every action attached to a clicked trigger part, in order.
@@ -528,16 +557,27 @@ function runEffectActions(model, trig) {
     } else if (action.type === 'strobeOff') {
       stopStrobe(action.target || trig.partName);
     } else if (action.type === 'systemToggle') {
-      systemOn = !systemOn;
-      if (systemOn) {
-        turnOnLights(model, action.targets, action.color || '#ffee88', action.brightness ?? 1.5);
-      } else {
-        turnOffLights(model, action.targets);
+      // Three-position key switch: Off -> Ready -> Disabled -> Ready -> ...
+      // Off is only the initial state (or after a Reset); once switched on
+      // the first time, it cycles between Ready and Disabled from then on.
+      const readyTargets = action.targets || '';
+      const disabledTargets = action.disabledTargets || action.targets || '';
+      if (systemMode === 'off') {
+        systemMode = 'ready';
+        turnOnLights(model, readyTargets, action.color || '#00ff66', action.brightness ?? 1.5);
+      } else if (systemMode === 'ready') {
+        systemMode = 'disabled';
+        turnOffLights(model, readyTargets);
+        turnOnLights(model, disabledTargets, action.disabledColor || '#ff3300', action.disabledBrightness ?? 1.5);
+      } else if (systemMode === 'disabled') {
+        systemMode = 'ready';
+        turnOffLights(model, disabledTargets);
+        turnOnLights(model, readyTargets, action.color || '#00ff66', action.brightness ?? 1.5);
       }
-      console.log('[effects] System toggled ' + (systemOn ? 'ON' : 'OFF') + '.');
+      console.log('[effects] System mode: ' + systemMode);
     } else if (action.type === 'gas') {
-      if (!systemOn) {
-        console.warn('[effects] Gas discharge blocked — system is off. Click the key switch first.');
+      if (systemMode !== 'ready') {
+        console.warn('[effects] Gas discharge blocked — system is "' + systemMode + '". Switch the key to Ready first.');
         return;
       }
       runDelayedGas(model, action, trig);
@@ -721,6 +761,10 @@ function setupEffectTriggers(model, effectsList) {
   const effectRaycaster = new THREE.Raycaster();
   const effectPointer = new THREE.Vector2();
   const triggerNames = new Set(effectsList.map(e => e.partName));
+  // Cursor feedback should also react to the abort button(s), even though
+  // they're handled separately via pointerdown/up, not this click handler.
+  const abortNames = (abortPartName || '').split(',').map(s => s.trim()).filter(Boolean);
+  const hoverableNames = new Set([...triggerNames, ...abortNames]);
 
   renderer.domElement.addEventListener('click', (event) => {
     const rect = renderer.domElement.getBoundingClientRect();
@@ -741,7 +785,7 @@ function setupEffectTriggers(model, effectsList) {
     effectPointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     effectRaycaster.setFromCamera(effectPointer, camera);
     const hit = effectRaycaster.intersectObject(model, true)[0];
-    const isClickable = hit && findMatchingAncestorName(hit.object, triggerNames);
+    const isClickable = hit && findMatchingAncestorName(hit.object, hoverableNames);
     renderer.domElement.style.cursor = isClickable ? 'pointer' : 'grab';
   });
 }
@@ -829,7 +873,19 @@ if (exitUrl) {
   a.href = exitUrl; a.target = '_top'; a.textContent = 'Exit';
   navBar.appendChild(a);
 }
-if (libraryUrl || exitUrl) navBar.classList.add('visible');
+if (EMBEDDED_PACKAGE.instructions) {
+  const btn = document.createElement('button');
+  btn.textContent = 'Instructions';
+  btn.addEventListener('click', () => {
+    document.getElementById('instructionsText').textContent = EMBEDDED_PACKAGE.instructions;
+    document.getElementById('instructionsOverlay').classList.add('open');
+  });
+  navBar.appendChild(btn);
+}
+document.getElementById('instructionsCloseBtn').addEventListener('click', () => {
+  document.getElementById('instructionsOverlay').classList.remove('open');
+});
+if (libraryUrl || exitUrl || EMBEDDED_PACKAGE.instructions) navBar.classList.add('visible');
 
 // Load the embedded package immediately — no file picker, no fetch
 const s = EMBEDDED_PACKAGE.shading || {};
