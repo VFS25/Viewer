@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Product Viewer</title>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#eceef2; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  button, input, select, textarea { font-family: inherit; }
+  #app { position:relative; width:100%; height:100vh; }
+  #canvas-container { width:100%; height:100%; }
+  #navBar { position:absolute; top:12px; left:12px; z-index:10; display:none; gap:8px; }
+  #navBar.visible { display:flex; }
+  #navBar a {
+    background:rgba(255,255,255,0.9); color:#333; text-decoration:none;
+    font-size:12px; padding:7px 12px; border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.15); border:1px solid rgba(0,0,0,0.06);
+  }
+  #navBar a:hover { background:#fff; }
+  #navBar button {
+    background:rgba(255,255,255,0.9); color:#333; border:1px solid rgba(0,0,0,0.06);
+    font-size:12px; padding:7px 12px; border-radius:8px; cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,0.15); font-family:inherit;
+  }
+  #navBar button:hover { background:#fff; }
+  #instructionsOverlay {
+    display:none; position:absolute; inset:0; background:rgba(0,0,0,0.45);
+    z-index:30; align-items:center; justify-content:center;
+  }
+  #instructionsOverlay.open { display:flex; }
+  #instructionsBox {
+    background:#fff; border-radius:10px; padding:20px; max-width:420px; max-height:70vh;
+    overflow-y:auto; box-shadow:0 10px 40px rgba(0,0,0,0.3); position:relative;
+  }
+  #instructionsBox h3 { margin:0 0 10px 0; font-size:15px; color:#1f2937; }
+  #instructionsBox p { margin:0; font-size:13px; line-height:1.5; color:#333; white-space:pre-wrap; }
+  #instructionsCloseBtn {
+    position:absolute; top:10px; right:12px; background:none; border:none;
+    font-size:18px; cursor:pointer; color:#888; font-family:inherit;
+  }
+  .callout-label {
+    position:absolute; transform: translate(-50%, -145%);
+    background:rgba(0,0,0,0.68); color:#fff; padding:10px 12px; border-radius:8px;
+    font-size:12px; pointer-events:auto; min-width:150px; max-width:220px;
+    box-shadow:0 4px 16px rgba(0,0,0,0.35); cursor:pointer; user-select:none;
+    border:1px solid rgba(255,255,255,0.08);
+    opacity:0; visibility:hidden; transition:opacity 0.12s ease;
+  }
+  .callout-label.visible { opacity:1; visibility:visible; }
+  .callout-label .co-title { font-weight:700; margin-bottom:3px; color:#fff; }
+  .callout-label .co-desc { color:#d5d5d5; line-height:1.35; }
+  .callout-label:after {
+    content:''; position:absolute; left:50%; top:100%; transform:translateX(-50%);
+    border:6px solid transparent; border-top-color:rgba(0,0,0,0.68);
+  }
+  .callout-dot {
+    position:absolute; width:8px; height:8px; margin-left:-4px; margin-top:-4px;
+    box-sizing:border-box;
+    background:#000; border:1px solid white; border-radius:50%;
+    box-shadow:0 0 0 2px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.4);
+    pointer-events:auto; cursor:pointer; user-select:none;
+    display:flex; align-items:center; justify-content:center;
+    color:white; font-size:11px; font-weight:700; line-height:1;
+    transition:transform 0.12s ease;
+  }
+  .callout-dot:hover { transform:scale(1.15); }
+  .callout-dot::before {
+    content:''; position:absolute; inset:-3px; border-radius:50%;
+    border:1px solid rgba(0,0,0,0.6);
+    animation: calloutPulse 2s ease-out infinite;
+  }
+  @keyframes calloutPulse {
+    0% { transform:scale(0.8); opacity:0.8; }
+    100% { transform:scale(1.6); opacity:0; }
+  }
+  #loading {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:#5a5d63; font-size:13px; z-index:15; background:#eceef2;
+  }
+  .option-arrow {
+    position:absolute; transform:translate(-50%,-50%);
+    width:30px; height:30px; border-radius:50%; border:none;
+    background:rgba(255,255,255,0.92); color:#1f2937; font-size:16px; line-height:1;
+    box-shadow:0 3px 10px rgba(0,0,0,0.2); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity 0.18s ease;
+  }
+  .option-arrow.visible { opacity:1; pointer-events:auto; }
+  .option-arrow:hover { background:#fff; }
+  .option-flash-label {
+    position:absolute; transform:translate(-50%,-50%);
+    background:rgba(31,41,55,0.92); color:#fff; padding:5px 10px; border-radius:6px;
+    font-size:12px; font-weight:600; white-space:nowrap; pointer-events:none;
+    opacity:0;
+  }
+  .option-flash-label.show {
+    animation: optionFlash 1.8s ease forwards;
+  }
+  @keyframes optionFlash {
+    0% { opacity:0; }
+    12% { opacity:1; }
+    75% { opacity:1; }
+    100% { opacity:0; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="canvas-container"></div>
+  <div id="loading">Loading…</div>
+  <div id="navBar"></div>
+  <div id="instructionsOverlay">
+    <div id="instructionsBox">
+      <button id="instructionsCloseBtn">&times;</button>
+      <h3>Instructions</h3>
+      <p id="instructionsText"></p>
+    </div>
+  </div>
+  <div id="countdownDisplay" style="display:none; position:absolute; left:50%; bottom:28px; transform:translateX(-50%); font-size:48px; font-weight:700; color:#fff; background:rgba(0,0,0,0.55); border-radius:12px; padding:16px 24px; z-index:20; align-items:center; justify-content:center;"></div>
+  <div id="navHint" style="position:absolute; bottom:6px; left:50%; transform:translateX(-50%); font-size:8px; font-family:'Quicksand',sans-serif; color:rgba(0,0,0,0.45); z-index:5; white-space:nowrap; pointer-events:none;">Drag to rotate &bull; Right-click drag to pan &bull; Scroll to zoom</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const EMBEDDED_PACKAGE = {"formatVersion":1,"shading":{"background":"#eceef2","exposure":1.8,"toneMapping":"Linear","keyLightIntensity":3.1,"fillLightIntensity":1.4,"hemiLightIntensity":1.1,"lightAzimuth":36,"lightElevation":31,"shadowsEnabled":false},"callouts":[{"x":0.1375650200890529,"y":1.4490559291632525,"z":-0.05936543133978769,"title":"Schroeder Valve","description":"","optionScope":{"groupLabel":"Cylinders","choiceLabel":"910lb."}},{"x":-0.1358463540990801,"y":1.4667189753023249,"z":0.048965112063954985,"title":"Burst Disc","description":"","optionScope":{"groupLabel":"Cylinders","choiceLabel":"910lb."}},{"x":0.08355604449350935,"y":1.480913842225743,"z":-0.14067568313937037,"title":"Liquid Level Indicator","description":"","optionScope":{"groupLabel":"Cylinders","choiceLabel":"910lb."}},{"x":0.028201246553148592,"y":1.6987402624781223,"z":0.05882884686244519,"title":"Gauge Guard","description":"","optionScope":{"groupLabel":"Cylinders","choiceLabel":"910lb."}},{"x":0.008660032132259,"y":1.677691922455549,"z":0.09572458519776843,"title":"Pressure Gauge Switch","description":"","optionScope":{"groupLabel":"Cylinders","choiceLabel":"910lb."}}],"optionGroups":[{"label":"Cylinders","anchor":{"x":0.007927579973816455,"y":0.5705335192371259,"z":0.3638092374326061},"choices":[{"label":"42lb.","partNames":["42"]},{"label":"76lb.","partNames":["76"]},{"label":"164lb.","partNames":["164"]},{"label":"322lb.","partNames":["322"]},{"label":"601lb.","partNames":["601"]},{"label":"910lb.","partNames":["910"]}]}],"effects":[],"gasSettings":{"direction":"out","spread":0.3,"speed":0.35,"count":55,"intervalMs":50,"coneAngle":155,"facingAngle":0,"particleSize":0.38,"maxDistance":20},"flashSettings":{"pulseIntervalMs":400,"pulseDurationMs":250,"intensity":6,"color":"#ffffff"},"abortPartName":"Abort_POT, Abort_NGB"};
+const gasSettings = Object.assign({ direction: 'up', spread: 0.6, speed: 0.8, count: 16, intervalMs: 0, coneAngle: 360, facingAngle: 0, particleSize: 0.12, maxDistance: 1 }, EMBEDDED_PACKAGE.gasSettings || {});
+const flashSettings = Object.assign({ pulseIntervalMs: 400, pulseDurationMs: 250, intensity: 6, color: '#ffffff' }, EMBEDDED_PACKAGE.flashSettings || {});
+let abortPartName = EMBEDDED_PACKAGE.abortPartName || '';
+
+const container = document.getElementById('canvas-container');
+const loadingEl = document.getElementById('loading');
+const countdownEl = document.getElementById('countdownDisplay');
+const navBar = document.getElementById('navBar');
+
+const TONE_MAP = {
+  ACESFilmic: THREE.ACESFilmicToneMapping,
+  Reinhard: THREE.ReinhardToneMapping,
+  Cineon: THREE.CineonToneMapping,
+  Linear: THREE.NoToneMapping,
+};
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xeceef2);
+
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.01, 1000);
+camera.position.set(2.5, 1.8, 2.5);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = false;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+
+const hemi = new THREE.HemisphereLight(0xffffff, 0x30323a, 1.1);
+scene.add(hemi);
+const key = new THREE.DirectionalLight(0xffffff, 2.2);
+key.castShadow = false;
+key.shadow.mapSize.set(1024, 1024);
+key.shadow.camera.left = -2.5;
+key.shadow.camera.right = 2.5;
+key.shadow.camera.top = 2.5;
+key.shadow.camera.bottom = -2.5;
+key.shadow.camera.near = 0.1;
+key.shadow.camera.far = 12;
+key.shadow.bias = -0.002;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xffffff, 0.6);
+fill.position.set(-4, 2, -3);
+scene.add(fill);
+
+const groundPlane = new THREE.Mesh(
+  new THREE.PlaneGeometry(20, 20),
+  new THREE.ShadowMaterial({ opacity: 0.35 })
+);
+groundPlane.rotation.x = -Math.PI / 2;
+groundPlane.receiveShadow = true;
+groundPlane.visible = false;
+scene.add(groundPlane);
+
+// --- Interactive effects: flash and gas discharge ---
+function createSoftDotTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.4, 'rgba(255,255,255,0.6)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(canvas);
+}
+const softDotTexture = createSoftDotTexture();
+function findMatchingAncestorName(object, nameSet) {
+  let obj = object;
+  while (obj) {
+    if (nameSet.has(obj.name)) return obj.name;
+    obj = obj.parent;
+  }
+  return null;
+}
+let activeEffects = [];
+
+function spawnFlashPulse(worldPoint, cfg) {
+  const color = new THREE.Color(cfg.color || '#ffffff');
+  const light = new THREE.PointLight(color, 0, 3);
+  light.position.copy(worldPoint);
+  scene.add(light);
+  const spriteMat = new THREE.SpriteMaterial({ map: softDotTexture, color, transparent: true, opacity: 1, depthWrite: false });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(0.4, 0.4, 0.4);
+  sprite.position.copy(worldPoint);
+  scene.add(sprite);
+  activeEffects.push({ type: 'flash', light, sprite, start: performance.now(), duration: cfg.pulseDurationMs, maxIntensity: cfg.intensity });
+}
+
+// durationMs (optional): if longer than one pulse, repeats pulses at
+// pulseIntervalMs for that whole duration (a strobe), instead of firing once.
+function triggerFlashEffect(worldPoint, durationMs = 0, settings = {}) {
+  const cfg = Object.assign({ pulseIntervalMs: 400, pulseDurationMs: 250, intensity: 6, color: '#ffffff' }, settings);
+  if (durationMs && durationMs > cfg.pulseDurationMs) {
+    spawnFlashPulse(worldPoint, cfg);
+    const intervalId = setInterval(() => spawnFlashPulse(worldPoint, cfg), cfg.pulseIntervalMs);
+    setTimeout(() => clearInterval(intervalId), durationMs);
+  } else {
+    spawnFlashPulse(worldPoint, cfg);
+  }
+}
+
+function spawnGasBurst(worldPoint, burstDurationMs, cfg) {
+  const count = cfg.count;
+  const positions = new Float32Array(count * 3);
+  const velocities = [];
+  const targetDists = [];
+  // Cone: facingAngle is the compass direction (degrees, 0-360) the nozzle
+  // points; coneAngle is the total arc width (360 = omnidirectional, 180 =
+  // sprays only one half, narrower = a tight directional jet).
+  const facingRad = (cfg.facingAngle ?? 0) * Math.PI / 180;
+  const halfConeRad = ((cfg.coneAngle ?? 360) / 2) * Math.PI / 180;
+  const maxDist = cfg.maxDistance ?? 1;
+  // Distance is the primary control over reach: each particle aims for a
+  // random fraction of maxDistance and actually travels there (not just an
+  // unreachable cap). Speed controls how quickly it gets there (how
+  // "energetic" the burst looks), not how far.
+  const travelTimeSec = 1.5 / Math.max(0.1, cfg.speed);
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = worldPoint.x;
+    positions[i * 3 + 1] = worldPoint.y;
+    positions[i * 3 + 2] = worldPoint.z;
+    let base;
+    if (cfg.direction === 'down') base = new THREE.Vector3(0, -1, 0);
+    else if (cfg.direction === 'out') {
+      const theta = facingRad + (Math.random() * 2 - 1) * halfConeRad;
+      base = new THREE.Vector3(Math.sin(theta), 0.05, Math.cos(theta));
+    }
+    else base = new THREE.Vector3(0, 1, 0); // 'up' (default)
+    const jitter = new THREE.Vector3(
+      (Math.random() - 0.5) * cfg.spread * 2,
+      (Math.random() - 0.5) * cfg.spread * 2,
+      (Math.random() - 0.5) * cfg.spread * 2
+    );
+    const dir = base.clone().add(jitter).normalize();
+    const targetDist = maxDist * (0.6 + Math.random() * 0.4);
+    velocities.push(dir.multiplyScalar(targetDist / travelTimeSec));
+    targetDists.push(targetDist);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({ map: softDotTexture, color: 0xcccccc, size: cfg.particleSize ?? 0.12, transparent: true, opacity: 0.8, depthWrite: false, sizeAttenuation: true });
+  const points = new THREE.Points(geo, mat);
+  scene.add(points);
+  activeEffects.push({ type: 'gas', points, velocities, start: performance.now(), duration: burstDurationMs, basePositions: positions.slice(), targetDists });
+}
+
+// settings: { direction, spread, speed, count, intervalMs, coneAngle, facingAngle, particleSize }
+// intervalMs = 0 means one burst that drifts for the whole duration.
+// intervalMs > 0 means repeated short bursts spawned throughout the duration,
+// which reads as continuous discharge rather than a single puff.
+function triggerGasEffect(worldPoint, durationMs = 900, settings = {}) {
+  const cfg = Object.assign({ direction: 'up', spread: 0.6, speed: 0.8, count: 16, intervalMs: 0, coneAngle: 360, facingAngle: 0, particleSize: 0.12, maxDistance: 1 }, settings);
+  console.log('[effects] Gas firing — maxDistance=' + cfg.maxDistance + ', speed=' + cfg.speed + ', direction=' + cfg.direction + ', duration=' + durationMs + 'ms');
+  if (cfg.intervalMs > 0) {
+    const burstLifetime = Math.min(2000, Math.max(600, cfg.intervalMs * 2));
+    spawnGasBurst(worldPoint, burstLifetime, cfg);
+    const intervalId = setInterval(() => spawnGasBurst(worldPoint, burstLifetime, cfg), cfg.intervalMs);
+    setTimeout(() => clearInterval(intervalId), durationMs);
+  } else {
+    spawnGasBurst(worldPoint, durationMs, cfg);
+  }
+}
+
+function updateActiveEffects() {
+  const now = performance.now();
+  activeEffects = activeEffects.filter(fx => {
+    const t = (now - fx.start) / fx.duration;
+    if (t >= 1) {
+      if (fx.type === 'flash') { scene.remove(fx.light); scene.remove(fx.sprite); }
+      if (fx.type === 'gas') { scene.remove(fx.points); }
+      return false;
+    }
+    if (fx.type === 'flash') {
+      const maxI = fx.maxIntensity ?? 6;
+      const intensity = t < 0.15 ? (t / 0.15) * maxI : maxI * (1 - (t - 0.15) / 0.85);
+      fx.light.intensity = Math.max(0, intensity);
+      fx.sprite.material.opacity = Math.max(0, 1 - t);
+      fx.sprite.scale.setScalar(0.4 + t * 0.6);
+    } else if (fx.type === 'gas') {
+      const elapsedSec = (now - fx.start) / 1000;
+      const posAttr = fx.points.geometry.attributes.position;
+      for (let i = 0; i < fx.velocities.length; i++) {
+        let ox = fx.velocities[i].x * elapsedSec;
+        let oy = fx.velocities[i].y * elapsedSec;
+        let oz = fx.velocities[i].z * elapsedSec;
+        const len = Math.sqrt(ox * ox + oy * oy + oz * oz);
+        const cap = fx.targetDists[i];
+        if (len > cap) {
+          const scale = cap / len;
+          ox *= scale; oy *= scale; oz *= scale;
+        }
+        posAttr.array[i * 3] = fx.basePositions[i * 3] + ox;
+        posAttr.array[i * 3 + 1] = fx.basePositions[i * 3 + 1] + oy;
+        posAttr.array[i * 3 + 2] = fx.basePositions[i * 3 + 2] + oz;
+      }
+      posAttr.needsUpdate = true;
+      fx.points.material.opacity = Math.max(0, 0.8 * (1 - t));
+    }
+    return true;
+  });
+}
+
+function getPartWorldCenter(model, partName) {
+  let found = null;
+  model.traverse(obj => { if (obj.name === partName) found = obj; });
+  if (!found) return null;
+  const box = new THREE.Box3().setFromObject(found);
+  return box.getCenter(new THREE.Vector3());
+}
+
+// True only if the named part, and every ancestor up to the model root, has
+// visible=true — i.e. it's actually showing right now, not hidden by an
+// option-group swap.
+function isPartVisible(model, partName) {
+  let found = null;
+  model.traverse(obj => { if (obj.name === partName) found = obj; });
+  if (!found) return false;
+  let o = found;
+  while (o && o !== model.parent) {
+    if (!o.visible) return false;
+    o = o.parent;
+  }
+  return true;
+}
+
+// --- Named light groups: turn specific parts on (with color+brightness) or
+// off, tracked globally by part name so any trigger can control any light
+// group regardless of which trigger originally turned it on.
+let litPartsRegistry = {};
+
+function turnOnLights(model, targetsStr, color, brightness) {
+  const names = (targetsStr || '').split(',').map(s => s.trim()).filter(Boolean);
+  names.forEach(name => {
+    if (litPartsRegistry[name]) turnOffLights(model, name);
+    const meshEntries = [];
+    const lights = [];
+    model.traverse(obj => {
+      if (findMatchingAncestorName(obj, new Set([name])) !== name) return;
+      if (obj.isMesh && obj.material) {
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        mats.forEach(m => {
+          if (m.emissive) {
+            meshEntries.push({ material: m, originalEmissive: m.emissive.clone(), originalIntensity: m.emissiveIntensity });
+            m.emissive.set(color);
+            m.emissiveIntensity = brightness;
+          }
+        });
+        const box = new THREE.Box3().setFromObject(obj);
+        const center = box.getCenter(new THREE.Vector3());
+        const light = new THREE.PointLight(new THREE.Color(color), brightness, 1.5);
+        light.position.copy(center);
+        scene.add(light);
+        lights.push(light);
+      }
+    });
+    litPartsRegistry[name] = { meshEntries, lights };
+  });
+}
+
+function turnOffLights(model, targetsStr) {
+  const names = (targetsStr || '').split(',').map(s => s.trim()).filter(Boolean);
+  names.forEach(name => {
+    const entry = litPartsRegistry[name];
+    if (!entry) return;
+    entry.meshEntries.forEach(({ material, originalEmissive, originalIntensity }) => {
+      material.emissive.copy(originalEmissive);
+      material.emissiveIntensity = originalIntensity ?? 1;
+    });
+    entry.lights.forEach(l => scene.remove(l));
+    delete litPartsRegistry[name];
+  });
+}
+
+// --- Discharge countdown + hold-to-abort pause ---
+let abortHeld = false;
+let activeCountdownTimer = null;
+let activeCountdownState = null; // { totalMs, remaining } — shared so abort-release can reset it
+
+function setupAbortHold(model) {
+  const raycaster2 = new THREE.Raycaster();
+  const pointer2 = new THREE.Vector2();
+  function testHit(event) {
+    if (!abortPartName) return false;
+    const names = abortPartName.split(',').map(s => s.trim()).filter(Boolean);
+    if (!names.length) return false;
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer2.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer2.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster2.setFromCamera(pointer2, camera);
+    const hit = raycaster2.intersectObject(model, true)[0];
+    return hit && findMatchingAncestorName(hit.object, new Set(names));
+  }
+  renderer.domElement.addEventListener('pointerdown', (e) => { if (testHit(e)) abortHeld = true; });
+  // Releasing the abort button restarts the countdown from its full
+  // original length, giving a complete fresh delay window (matches how
+  // real abort/hold switches on suppression systems typically behave).
+  window.addEventListener('pointerup', () => {
+    if (abortHeld && activeCountdownState) {
+      activeCountdownState.remaining = activeCountdownState.totalMs;
+      showCountdown(Math.ceil(activeCountdownState.remaining / 1000));
+    }
+    abortHeld = false;
+  });
+}
+
+function showCountdown(n) {
+  if (!countdownEl) return;
+  countdownEl.style.display = 'flex';
+  countdownEl.textContent = n;
+}
+function showDischargeText() {
+  if (!countdownEl) return;
+  countdownEl.textContent = 'Discharge!';
+  setTimeout(() => { if (countdownEl) countdownEl.style.display = 'none'; }, 1200);
+}
+function hideCountdown() {
+  if (countdownEl) countdownEl.style.display = 'none';
+}
+
+function runDelayedGas(model, action, trig) {
+  const totalMs = (action.delaySeconds ?? 0) * 1000;
+  const gasDurationMs = (action.durationSeconds ?? 10) * 1000;
+  const fire = () => {
+    const pos = getPartWorldCenter(model, action.target || trig.partName);
+    if (pos) triggerGasEffect(pos, gasDurationMs, gasSettings);
+    // Optional: start a strobe at the exact moment discharge actually
+    // begins (after the countdown), and stop it when discharge ends —
+    // keeps the flash genuinely synced instead of firing on click.
+    if (action.strobeTarget) {
+      const spos = getPartWorldCenter(model, action.strobeTarget);
+      if (spos) {
+        startStrobe(spos, action.strobeTarget);
+        setTimeout(() => stopStrobe(action.strobeTarget), gasDurationMs);
+      }
+    }
+  };
+  if (totalMs <= 0) { fire(); return; }
+  activeCountdownState = { totalMs, remaining: totalMs };
+  showCountdown(Math.ceil(activeCountdownState.remaining / 1000));
+  activeCountdownTimer = setInterval(() => {
+    if (abortHeld) return; // frozen while held — release restarts the full delay
+    activeCountdownState.remaining -= 100;
+    if (activeCountdownState.remaining <= 0) {
+      clearInterval(activeCountdownTimer);
+      activeCountdownTimer = null;
+      activeCountdownState = null;
+      showDischargeText();
+      fire();
+      return;
+    }
+    showCountdown(Math.ceil(activeCountdownState.remaining / 1000));
+  }, 100);
+}
+
+// --- Strobe: a persistent repeating flash, started/stopped explicitly —
+// unlike the one-shot Flash action, this keeps pulsing indefinitely until a
+// matching "Strobe off" (or a Reset) action stops it, matching how a real
+// fire alarm strobe behaves (on for the whole alarm, not for a fixed time).
+let activeStrobes = {}; // key -> intervalId
+let systemMode = 'off'; // 'off' | 'ready' | 'disabled' — gas only fires while 'ready'
+
+function startStrobe(worldPoint, key) {
+  if (activeStrobes[key]) return; // already strobing
+  spawnFlashPulse(worldPoint, flashSettings);
+  activeStrobes[key] = setInterval(() => spawnFlashPulse(worldPoint, flashSettings), flashSettings.pulseIntervalMs);
+}
+function stopStrobe(key) {
+  if (activeStrobes[key]) { clearInterval(activeStrobes[key]); delete activeStrobes[key]; }
+}
+function stopAllStrobes() {
+  Object.values(activeStrobes).forEach(id => clearInterval(id));
+  activeStrobes = {};
+}
+
+function resetSystem(model) {
+  Object.keys(litPartsRegistry).forEach(name => turnOffLights(model, name));
+  if (activeCountdownTimer) { clearInterval(activeCountdownTimer); activeCountdownTimer = null; }
+  activeCountdownState = null;
+  hideCountdown();
+  stopAllStrobes();
+  systemMode = 'off';
+}
+
+// Runs every action attached to a clicked trigger part, in order.
+function runEffectActions(model, trig) {
+  console.log('[effects] Triggered by "' + trig.partName + '", running ' + (trig.actions || []).length + ' action(s).');
+  (trig.actions || []).forEach(action => {
+    if (action.type === 'flash') {
+      const delayMs = (action.delaySeconds ?? 0) * 1000;
+      const fire = () => {
+        const targetName = action.target || trig.partName;
+        const pos = getPartWorldCenter(model, targetName);
+        if (pos) {
+          triggerFlashEffect(pos, (action.durationSeconds ?? 0) * 1000, flashSettings);
+        } else {
+          console.warn('[effects] Flash: no part named "' + targetName + '" found in the model — check spelling/case.');
+        }
+      };
+      if (delayMs > 0) setTimeout(fire, delayMs); else fire();
+    } else if (action.type === 'strobeOn') {
+      const key = action.target || trig.partName;
+      const pos = getPartWorldCenter(model, key);
+      if (pos) {
+        startStrobe(pos, key);
+        console.log('[effects] Strobe started at "' + key + '".');
+      } else {
+        console.warn('[effects] Strobe on: no part named "' + key + '" found in the model — check spelling/case.');
+      }
+    } else if (action.type === 'strobeOff') {
+      stopStrobe(action.target || trig.partName);
+    } else if (action.type === 'systemToggle') {
+      // Three-position key switch: Off -> Ready -> Disabled -> Ready -> ...
+      // Off is only the initial state (or after a Reset); once switched on
+      // the first time, it cycles between Ready and Disabled from then on.
+      const readyTargets = action.targets || '';
+      const disabledTargets = action.disabledTargets || action.targets || '';
+      if (systemMode === 'off') {
+        systemMode = 'ready';
+        turnOnLights(model, readyTargets, action.color || '#00ff66', action.brightness ?? 1.5);
+      } else if (systemMode === 'ready') {
+        systemMode = 'disabled';
+        turnOffLights(model, readyTargets);
+        turnOnLights(model, disabledTargets, action.disabledColor || '#ff3300', action.disabledBrightness ?? 1.5);
+      } else if (systemMode === 'disabled') {
+        systemMode = 'ready';
+        turnOffLights(model, disabledTargets);
+        turnOnLights(model, readyTargets, action.color || '#00ff66', action.brightness ?? 1.5);
+      }
+      console.log('[effects] System mode: ' + systemMode);
+    } else if (action.type === 'gas') {
+      if (systemMode !== 'ready') {
+        console.warn('[effects] Gas discharge blocked — system is "' + systemMode + '". Switch the key to Ready first.');
+        return;
+      }
+      runDelayedGas(model, action, trig);
+    } else if (action.type === 'lightOn') {
+      turnOnLights(model, action.targets, action.color || '#ffee88', action.brightness ?? 1.5);
+    } else if (action.type === 'lightOff') {
+      turnOffLights(model, action.targets);
+    } else if (action.type === 'reset') {
+      resetSystem(model);
+    }
+  });
+}
+
+let currentModel = null;
+let callouts = [];
+const overlay = document.createElement('div');
+overlay.style.position = 'absolute';
+overlay.style.inset = '0';
+overlay.style.pointerEvents = 'none';
+document.getElementById('app').appendChild(overlay);
+
+async function base64ToArrayBuffer(base64) {
+  try {
+    const res = await fetch('data:application/octet-stream;base64,' + base64);
+    return await res.arrayBuffer();
+  } catch (err) {
+    console.warn('Fast base64 decode failed, falling back to manual decode:', err);
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+  }
+}
+async function fetchModelBuffer(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Model fetch failed: HTTP ' + res.status);
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const data = await res.json();
+    return base64ToArrayBuffer(data.base64);
+  }
+  return res.arrayBuffer();
+}
+
+// --- Configurable option groups (panel/actuator/accessory swaps, etc.) ---
+function applyOptionChoice(model, group, choiceIndex) {
+  const allParts = new Set();
+  group.choices.forEach(c => c.partNames.forEach(n => allParts.add(n)));
+  const selectedParts = new Set((group.choices[choiceIndex] || {}).partNames || []);
+  model.traverse(obj => {
+    if (allParts.has(obj.name)) obj.visible = selectedParts.has(obj.name);
+  });
+}
+
+// Where to float a group's arrows: the author-set anchor point if there is
+// one, otherwise the bounding-box center of the first choice's parts.
+function computeGroupAnchorLocal(model, group) {
+  if (group.anchor) return new THREE.Vector3(group.anchor.x, group.anchor.y, group.anchor.z);
+  const firstChoice = group.choices[0] || {};
+  const box = new THREE.Box3();
+  let found = false;
+  model.traverse(obj => {
+    if ((firstChoice.partNames || []).includes(obj.name)) { box.expandByObject(obj); found = true; }
+  });
+  if (!found) return new THREE.Vector3(0, 0, 0);
+  return model.worldToLocal(box.getCenter(new THREE.Vector3()));
+}
+
+const ARROW_OFFSET_PX = 55; // horizontal distance each arrow sits from the anchor
+let optionCyclers = []; // { group, currentIndex, anchorLocal, leftArrowEl, rightArrowEl, flashLabelEl, partNamesForHover }
+let currentOptionSelections = {}; // groupLabel -> currently selected choice label
+let hoveredCyclerIndex = null;
+
+function flashLabel(cycler) {
+  const choice = cycler.group.choices[cycler.currentIndex];
+  cycler.flashLabelEl.textContent = choice.label || ('Option ' + (cycler.currentIndex + 1));
+  cycler.flashLabelEl.classList.remove('show');
+  void cycler.flashLabelEl.offsetWidth; // restart animation even on rapid re-clicks
+  cycler.flashLabelEl.classList.add('show');
+}
+
+function setupOptionCyclers(model, optionGroups) {
+  (optionGroups || []).forEach((group) => {
+    if (!group.choices || !group.choices.length) return;
+
+    const leftArrowEl = document.createElement('button');
+    leftArrowEl.className = 'option-arrow';
+    leftArrowEl.textContent = '‹';
+    overlay.appendChild(leftArrowEl);
+
+    const rightArrowEl = document.createElement('button');
+    rightArrowEl.className = 'option-arrow';
+    rightArrowEl.textContent = '›';
+    overlay.appendChild(rightArrowEl);
+
+    const flashLabelEl = document.createElement('div');
+    flashLabelEl.className = 'option-flash-label';
+    overlay.appendChild(flashLabelEl);
+
+    // The full set of part names this group ever manages — used to detect
+    // when the mouse is hovering the currently-visible member of this group.
+    const allPartNames = new Set();
+    group.choices.forEach(c => c.partNames.forEach(n => allPartNames.add(n)));
+
+    const cycler = {
+      group, currentIndex: 0,
+      anchorLocal: computeGroupAnchorLocal(model, group),
+      leftArrowEl, rightArrowEl, flashLabelEl, allPartNames,
+    };
+
+    leftArrowEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      cycler.currentIndex = (cycler.currentIndex - 1 + group.choices.length) % group.choices.length;
+      applyOptionChoice(model, group, cycler.currentIndex);
+      currentOptionSelections[group.label] = group.choices[cycler.currentIndex].label;
+      flashLabel(cycler);
+    });
+    rightArrowEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      cycler.currentIndex = (cycler.currentIndex + 1) % group.choices.length;
+      applyOptionChoice(model, group, cycler.currentIndex);
+      currentOptionSelections[group.label] = group.choices[cycler.currentIndex].label;
+      flashLabel(cycler);
+    });
+
+    applyOptionChoice(model, group, 0);
+    currentOptionSelections[group.label] = group.choices[0].label;
+    optionCyclers.push(cycler);
+  });
+
+  // Hover detection: raycast on mouse move, show arrows only for whichever
+  // group's currently-visible part is under the cursor. Because the arrow
+  // buttons sit visually on top of the canvas, the browser routes pointer
+  // events to them (not the canvas) once the cursor reaches them — so the
+  // last-set hover state naturally holds while moving from the object onto
+  // its arrows, with no extra bridging logic needed.
+  const hoverRaycaster = new THREE.Raycaster();
+  const hoverPointer = new THREE.Vector2();
+  renderer.domElement.addEventListener('pointermove', (event) => {
+    if (!currentModel || !optionCyclers.length) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    hoverPointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    hoverPointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    hoverRaycaster.setFromCamera(hoverPointer, camera);
+    const hit = hoverRaycaster.intersectObject(currentModel, true)[0];
+    const newHoveredIndex = hit ? optionCyclers.findIndex(c => findMatchingAncestorName(hit.object, c.allPartNames)) : -1;
+    if (newHoveredIndex === hoveredCyclerIndex) return;
+    hoveredCyclerIndex = newHoveredIndex === -1 ? null : newHoveredIndex;
+    optionCyclers.forEach((c, i) => {
+      const visible = i === hoveredCyclerIndex;
+      c.leftArrowEl.classList.toggle('visible', visible);
+      c.rightArrowEl.classList.toggle('visible', visible);
+    });
+  });
+}
+
+function updateOptionCyclerPositions() {
+  if (!currentModel) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  optionCyclers.forEach(c => {
+    const worldPoint = c.anchorLocal.clone();
+    currentModel.localToWorld(worldPoint);
+    const screenPoint = worldPoint.clone().project(camera);
+    const behindCamera = screenPoint.z > 1;
+    const x = (screenPoint.x * 0.5 + 0.5) * rect.width;
+    const y = (-screenPoint.y * 0.5 + 0.5) * rect.height;
+    const display = behindCamera ? 'none' : '';
+    c.leftArrowEl.style.display = display;
+    c.rightArrowEl.style.display = display;
+    c.leftArrowEl.style.left = (x - ARROW_OFFSET_PX) + 'px';
+    c.leftArrowEl.style.top = y + 'px';
+    c.rightArrowEl.style.left = (x + ARROW_OFFSET_PX) + 'px';
+    c.rightArrowEl.style.top = y + 'px';
+    c.flashLabelEl.style.left = x + 'px';
+    c.flashLabelEl.style.top = (y - 40) + 'px';
+  });
+}
+
+function setupEffectTriggers(model, effectsList) {
+  if (!effectsList || !effectsList.length) return;
+  const effectRaycaster = new THREE.Raycaster();
+  const effectPointer = new THREE.Vector2();
+  const triggerNames = new Set(effectsList.map(e => e.partName));
+  // Cursor feedback should also react to the abort button(s), even though
+  // they're handled separately via pointerdown/up, not this click handler.
+  const abortNames = (abortPartName || '').split(',').map(s => s.trim()).filter(Boolean);
+  const hoverableNames = new Set([...triggerNames, ...abortNames]);
+
+  renderer.domElement.addEventListener('click', (event) => {
+    const rect = renderer.domElement.getBoundingClientRect();
+    effectPointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    effectPointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    effectRaycaster.setFromCamera(effectPointer, camera);
+    const hit = effectRaycaster.intersectObject(model, true)[0];
+    if (!hit) return;
+    const matchedName = findMatchingAncestorName(hit.object, triggerNames);
+    const fx = effectsList.find(e => e.partName === matchedName);
+    if (fx) runEffectActions(model, fx);
+  });
+
+  // Cursor feedback: pointer over anything clickable, grab otherwise.
+  renderer.domElement.addEventListener('pointermove', (event) => {
+    const rect = renderer.domElement.getBoundingClientRect();
+    effectPointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    effectPointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    effectRaycaster.setFromCamera(effectPointer, camera);
+    const hit = effectRaycaster.intersectObject(model, true)[0];
+    const isClickable = hit && findMatchingAncestorName(hit.object, hoverableNames);
+    renderer.domElement.style.cursor = isClickable ? 'pointer' : 'grab';
+  });
+}
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+function addCallout(localPoint, title, description, number, followPartNames, optionScope) {
+  const dotEl = document.createElement('div');
+  dotEl.className = 'callout-dot';
+  // no number text — plain circular marker
+  overlay.appendChild(dotEl);
+
+  const domEl = document.createElement('div');
+  domEl.className = 'callout-label';
+  domEl.innerHTML = '<div class="co-title">' + escapeHtml(title || '') + '</div>' +
+    (description ? '<div class="co-desc">' + escapeHtml(description) + '</div>' : '');
+  overlay.appendChild(domEl);
+
+  const calloutObj = { point: localPoint, domEl, dotEl, visible: false, followPartNames: followPartNames || [], optionScope: optionScope || null };
+  callouts.push(calloutObj);
+
+  dotEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    calloutObj.visible = !calloutObj.visible;
+    domEl.classList.toggle('visible', calloutObj.visible);
+  });
+  domEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    calloutObj.visible = false;
+    domEl.classList.remove('visible');
+  });
+}
+
+function updateCalloutPositions() {
+  if (!currentModel) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  callouts.forEach(c => {
+    if (c.optionScope && currentOptionSelections[c.optionScope.groupLabel] !== c.optionScope.choiceLabel) {
+      c.domEl.style.display = 'none';
+      c.dotEl.style.display = 'none';
+      return;
+    }
+    let worldPoint;
+    if (c.followPartNames && c.followPartNames.length) {
+      const visibleName = c.followPartNames.find(name => isPartVisible(currentModel, name));
+      const center = visibleName ? getPartWorldCenter(currentModel, visibleName) : null;
+      if (center) {
+        worldPoint = center;
+      } else {
+        worldPoint = c.point.clone();
+        currentModel.localToWorld(worldPoint);
+      }
+    } else {
+      worldPoint = c.point.clone();
+      currentModel.localToWorld(worldPoint);
+    }
+    const screenPoint = worldPoint.clone().project(camera);
+    const behindCamera = screenPoint.z > 1;
+    const x = (screenPoint.x * 0.5 + 0.5) * rect.width;
+    const y = (-screenPoint.y * 0.5 + 0.5) * rect.height;
+    c.domEl.style.display = behindCamera ? 'none' : 'block';
+    c.dotEl.style.display = behindCamera ? 'none' : 'block';
+    c.domEl.style.left = x + 'px';
+    c.domEl.style.top = y + 'px';
+    c.dotEl.style.left = x + 'px';
+    c.dotEl.style.top = y + 'px';
+  });
+}
+
+// Nav bar from ?library= / ?exit= — target="_top" breaks out of a cross-origin iframe
+const params = new URLSearchParams(window.location.search);
+const libraryUrl = params.get('library');
+const exitUrl = params.get('exit');
+if (libraryUrl) {
+  const a = document.createElement('a');
+  a.href = libraryUrl; a.target = '_top'; a.textContent = '← Back to library';
+  navBar.appendChild(a);
+}
+if (exitUrl) {
+  const a = document.createElement('a');
+  a.href = exitUrl; a.target = '_top'; a.textContent = 'Exit';
+  navBar.appendChild(a);
+}
+if (EMBEDDED_PACKAGE.instructions) {
+  const btn = document.createElement('button');
+  btn.textContent = 'Instructions';
+  btn.addEventListener('click', () => {
+    document.getElementById('instructionsText').textContent = EMBEDDED_PACKAGE.instructions;
+    document.getElementById('instructionsOverlay').classList.add('open');
+  });
+  navBar.appendChild(btn);
+}
+document.getElementById('instructionsCloseBtn').addEventListener('click', () => {
+  document.getElementById('instructionsOverlay').classList.remove('open');
+});
+if (libraryUrl || exitUrl || EMBEDDED_PACKAGE.instructions) navBar.classList.add('visible');
+
+// Load the embedded package immediately — no file picker, no fetch
+const s = EMBEDDED_PACKAGE.shading || {};
+scene.background = new THREE.Color(s.background || '#eceef2');
+renderer.toneMapping = TONE_MAP[s.toneMapping] ?? THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = s.exposure ?? 1.0;
+key.intensity = s.keyLightIntensity ?? 2.2;
+fill.intensity = s.fillLightIntensity ?? 0.6;
+hemi.intensity = s.hemiLightIntensity ?? 1.1;
+
+const azimuthDeg = s.lightAzimuth ?? 45;
+const elevationDeg = s.lightElevation ?? 50;
+const lightRadius = 5;
+const az = azimuthDeg * Math.PI / 180;
+const el = elevationDeg * Math.PI / 180;
+key.position.set(
+  lightRadius * Math.cos(el) * Math.sin(az),
+  lightRadius * Math.sin(el),
+  lightRadius * Math.cos(el) * Math.cos(az)
+);
+
+const shadowsOn = !!s.shadowsEnabled;
+renderer.shadowMap.enabled = shadowsOn;
+key.castShadow = shadowsOn;
+groundPlane.visible = shadowsOn;
+
+const modelUrlOverride = params.get('model');
+const effectiveModelUrl = modelUrlOverride || EMBEDDED_PACKAGE.modelUrl;
+
+try {
+  const buffer = effectiveModelUrl
+    ? await fetchModelBuffer(effectiveModelUrl)
+    : await base64ToArrayBuffer(EMBEDDED_PACKAGE.glbBase64);
+  const loader = new GLTFLoader();
+  loader.parse(buffer, '', (gltf) => {
+    currentModel = gltf.scene;
+    const box = new THREE.Box3().setFromObject(currentModel);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    const scale = 1.6 / maxDim;
+    currentModel.scale.setScalar(scale);
+    currentModel.position.sub(center.multiplyScalar(scale));
+    currentModel.traverse(obj => {
+      if (obj.isMesh) { obj.castShadow = true; obj.receiveShadow = true; }
+    });
+    scene.add(currentModel);
+    const scaledBox = new THREE.Box3().setFromObject(currentModel);
+    groundPlane.position.y = scaledBox.min.y - 0.001;
+
+    (EMBEDDED_PACKAGE.callouts || []).forEach((c, i) => addCallout(new THREE.Vector3(c.x, c.y, c.z), c.title, c.description, i + 1, c.followPartNames, c.optionScope));
+    setupOptionCyclers(currentModel, EMBEDDED_PACKAGE.optionGroups || []);
+    setupEffectTriggers(currentModel, EMBEDDED_PACKAGE.effects || []);
+    setupAbortHold(currentModel);
+    loadingEl.style.display = 'none';
+  }, (err) => {
+    console.error(err);
+    loadingEl.textContent = 'Failed to load scene: ' + err.message;
+  });
+} catch (err) {
+  console.error('Model loading failed:', err);
+  loadingEl.textContent = 'Failed to load scene: ' + err.message;
+}
+
+function handleResize() {
+  const w = container.clientWidth, h = container.clientHeight;
+  if (w === 0 || h === 0) return;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+new ResizeObserver(handleResize).observe(container);
+window.addEventListener('resize', handleResize);
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  updateCalloutPositions();
+  updateOptionCyclerPositions();
+  updateActiveEffects();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
