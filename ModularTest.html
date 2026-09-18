@@ -23,6 +23,36 @@
     box-shadow:0 2px 8px rgba(0,0,0,0.15); font-family:inherit;
   }
   #navBar button:hover { background:#fff; }
+  #viewButtons {
+    position:absolute; bottom:48px; left:50%; transform:translateX(-50%);
+    display:flex; gap:4px; z-index:10;
+  }
+  #viewButtons button {
+    background:rgba(255,255,255,0.9); border:1px solid rgba(0,0,0,0.08); color:#333;
+    font-size:11px; padding:5px 10px; border-radius:6px; cursor:pointer; font-family:inherit;
+  }
+  #viewButtons button:hover { background:#fff; }
+  #viewButtons button.active { background:#3d7eff; color:#fff; border-color:#3d7eff; }
+  #tutorialBtn { background:rgba(255,204,0,0.95) !important; border-color:#c9a300 !important; font-weight:700; }
+  #tutorialBtn:hover { background:#ffd633 !important; }
+  #tutorialBanner {
+    position:absolute; top:16px; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,0.78); color:#fff; padding:12px 18px; border-radius:10px;
+    font-size:14px; max-width:min(80vw, 420px); z-index:25; display:flex;
+    align-items:center; gap:12px; box-shadow:0 6px 24px rgba(0,0,0,0.35);
+  }
+  #tutorialSkipBtn {
+    background:none; border:none; color:#ccc; font-size:18px; cursor:pointer;
+    font-family:inherit; line-height:1; padding:0;
+  }
+  #tutorialSkipBtn:hover { color:#fff; }
+  #tutorialBackBtn, #tutorialForwardBtn {
+    background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); color:#fff;
+    font-size:15px; cursor:pointer; border-radius:6px; padding:2px 9px; font-family:inherit;
+  }
+  #tutorialBackBtn:hover, #tutorialForwardBtn:hover { background:rgba(255,255,255,0.3); }
+  #tutorialBackBtn:disabled, #tutorialForwardBtn:disabled { opacity:0.3; cursor:default; }
+  #tutorialBackBtn:disabled:hover, #tutorialForwardBtn:disabled:hover { background:rgba(255,255,255,0.15); }
   #instructionsOverlay {
     display:none; position:absolute; inset:0; background:rgba(0,0,0,0.45);
     z-index:30; align-items:center; justify-content:center;
@@ -49,6 +79,7 @@
   .callout-label.visible { opacity:1; visibility:visible; }
   .callout-label .co-title { font-weight:700; margin-bottom:3px; color:#fff; }
   .callout-label .co-desc { color:#d5d5d5; line-height:1.35; }
+  .callout-label .co-desc a { color:#7ab8ff; text-decoration:underline; }
   .callout-label:after {
     content:''; position:absolute; left:50%; top:100%; transform:translateX(-50%);
     border:6px solid transparent; border-top-color:rgba(0,0,0,0.68);
@@ -64,6 +95,13 @@
     transition:transform 0.12s ease;
   }
   .callout-dot:hover { transform:scale(1.15); }
+  .dimension-label {
+    position:absolute; transform: translate(-50%, -50%);
+    background:rgba(0,0,0,0.68); color:#fff; padding:4px 8px; border-radius:5px;
+    font-size:10px; font-weight:600; white-space:nowrap; pointer-events:none;
+    opacity:0; transition:opacity 0.4s ease;
+  }
+  .dimension-label.visible { opacity:1; }
   .callout-dot::before {
     content:''; position:absolute; inset:-3px; border-radius:50%;
     border:1px solid rgba(0,0,0,0.6);
@@ -117,7 +155,20 @@
     </div>
   </div>
   <div id="countdownDisplay" style="display:none; position:absolute; left:50%; bottom:28px; transform:translateX(-50%); font-size:48px; font-weight:700; color:#fff; background:rgba(0,0,0,0.55); border-radius:12px; padding:16px 24px; z-index:20; align-items:center; justify-content:center;"></div>
-  <div id="navHint" style="position:absolute; bottom:6px; left:50%; transform:translateX(-50%); font-size:8px; font-family:'Quicksand',sans-serif; color:rgba(0,0,0,0.45); z-index:5; white-space:nowrap; pointer-events:none;">Drag to rotate &bull; Right-click drag to pan &bull; Scroll to zoom</div>
+  <div id="navHint" style="position:absolute; bottom:6px; left:50%; transform:translateX(-50%); font-size:16px; font-family:'Quicksand',sans-serif; color:rgba(0,0,0,0.45); z-index:5; white-space:nowrap; pointer-events:none;">Drag to rotate &bull; Right-click drag to pan &bull; Scroll to zoom</div>
+  <div id="viewButtons">
+    <button data-view="front">Front</button>
+    <button data-view="top">Top</button>
+    <button data-view="side">Side</button>
+    <button data-view="perspective" class="active">3D</button>
+    <button id="tutorialBtn" style="display:none;">System Tutorial</button>
+  </div>
+  <div id="tutorialBanner" style="display:none;">
+    <button id="tutorialBackBtn">&larr;</button>
+    <span id="tutorialBannerText"></span>
+    <button id="tutorialForwardBtn">&rarr;</button>
+    <button id="tutorialSkipBtn">&times;</button>
+  </div>
 </div>
 
 <script type="importmap">
@@ -134,7 +185,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const EMBEDDED_PACKAGE = {"formatVersion":1,"shading":{"background":"#eceef2","exposure":1.8,"toneMapping":"Linear","keyLightIntensity":3.1,"fillLightIntensity":1.4,"hemiLightIntensity":1.1,"lightAzimuth":36,"lightElevation":31,"shadowsEnabled":false},"callouts":[{"x":-0.013689398300806947,"y":1.2217937852276552,"z":-0.023195848640497604,"title":"Abort Switch","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.22208136846224033,"y":1.226210149909286,"z":-0.02381671180572479,"title":"Key Maintenance Switch","description":"This device turns the system on/off."},{"x":-0.15746303242907309,"y":1.2259745181532014,"z":-0.019243665455820444,"title":"Pull Station","description":"This device activates the system.","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.16498710718996007,"y":1.9028915088891547,"z":-0.04447545281230662,"title":"Mini-Horn","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}},{"x":0.156870498226368,"y":2.024298074238363,"z":-0.047427663241021364,"title":"Horn/Strobe","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}},{"x":-0.0597703230971324,"y":2.2938036878127064,"z":-0.07565648030797166,"title":"Nozzle","description":""},{"x":0.1859246132164218,"y":1.36207608391197,"z":0.08807137161321271,"title":"Fire Suppression Control Panel","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}},{"x":0.1846982349967658,"y":1.3636771305026705,"z":0.08807137160264308,"title":"Fire Suppression Control Panel","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.16598147963885385,"y":1.9050418237108528,"z":-0.044475453503810713,"title":"Mini-Horn","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.15991158567245312,"y":2.019103742947628,"z":-0.04924803206614417,"title":"Horn/Strobe","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":-0.23995231096120057,"y":1.0484196313320877,"z":-0.007950955007429518,"title":"Pull/Abort Station","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}}],"optionGroups":[{"label":"Fire Suppression Control Panels","anchor":{"x":-0.008360734816939889,"y":1.4114330200995266,"z":0.08807137128738077},"choices":[{"label":"Potter","partNames":["panel_potter"]},{"label":"FireLite","partNames":["panel_firelite"]},{"label":"FCV","partNames":["panel_FCV"]}]},{"label":"Cylinders","anchor":{"x":0.007927579973816455,"y":0.5705335192371259,"z":0.3638092374326061},"choices":[{"label":"42lb.","partNames":["42"]},{"label":"76lb.","partNames":["76"]},{"label":"164lb.","partNames":["164"]},{"label":"322lb.","partNames":["322"]}]}],"effects":[{"partName":"MCV001","actions":[{"type":"systemToggle","targets":"Cylinder343, Cylinder344, panel_potter, panel_firelite","color":"#0c2c07","brightness":0.2,"disabledTargets":"Cylinder343, Cylinder344, panel_potter, panel_firelite","disabledColor":"#503107","disabledBrightness":0.1}]},{"partName":"activator","actions":[{"type":"gas","target":"Nozzle_Spray","delaySeconds":10,"durationSeconds":10,"color":"#ffee88","brightness":1.5,"strobeTarget":"flasher"}]}],"gasSettings":{"direction":"out","spread":0.3,"speed":0.35,"count":55,"intervalMs":50,"coneAngle":155,"facingAngle":0,"particleSize":0.38,"maxDistance":20},"flashSettings":{"pulseIntervalMs":400,"pulseDurationMs":250,"intensity":6,"color":"#ffffff"},"abortPartName":"Abort_POT, Abort_NGB"};
+const EMBEDDED_PACKAGE = {"formatVersion":1,"shading":{"background":"#eceef2","exposure":1.8,"toneMapping":"Linear","keyLightIntensity":3.1,"fillLightIntensity":1.4,"hemiLightIntensity":1.1,"lightAzimuth":36,"lightElevation":31,"shadowsEnabled":false},"callouts":[{"x":-0.013689398300806947,"y":1.2217937852276552,"z":-0.023195848640497604,"title":"Abort Switch","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.22208136846224033,"y":1.226210149909286,"z":-0.02381671180572479,"title":"Key Maintenance Switch","description":"This device turns the system on/off."},{"x":-0.15746303242907309,"y":1.2259745181532014,"z":-0.019243665455820444,"title":"Pull Station","description":"This device activates the system.","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.16498710718996007,"y":1.9028915088891547,"z":-0.04447545281230662,"title":"Mini-Horn","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}},{"x":0.156870498226368,"y":2.024298074238363,"z":-0.047427663241021364,"title":"Horn/Strobe","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}},{"x":-0.0597703230971324,"y":2.2938036878127064,"z":-0.07565648030797166,"title":"Nozzle","description":""},{"x":0.1859246132164218,"y":1.36207608391197,"z":0.08807137161321271,"title":"Fire Suppression Control Panel","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}},{"x":0.1846982349967658,"y":1.3636771305026705,"z":0.08807137160264308,"title":"Fire Suppression Control Panel","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.16598147963885385,"y":1.9050418237108528,"z":-0.044475453503810713,"title":"Mini-Horn","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":0.15991158567245312,"y":2.019103742947628,"z":-0.04924803206614417,"title":"Horn/Strobe","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"Potter"}},{"x":-0.23995231096120057,"y":1.0484196313320877,"z":-0.007950955007429518,"title":"Pull/Abort Station","description":"","optionScope":{"groupLabel":"Fire Suppression Control Panels","choiceLabel":"FireLite"}}],"dimensionLines":[],"optionGroups":[{"label":"Fire Suppression Control Panels","anchor":{"x":-0.008360734816939889,"y":1.4114330200995266,"z":0.08807137128738077},"choices":[{"label":"Potter","partNames":["panel_potter"]},{"label":"FireLite","partNames":["panel_firelite"]},{"label":"FCV","partNames":["panel_FCV"]}]},{"label":"Cylinders","anchor":{"x":0.007927579973816455,"y":0.5705335192371259,"z":0.3638092374326061},"choices":[{"label":"42lb.","partNames":["42"]},{"label":"76lb.","partNames":["76"]},{"label":"164lb.","partNames":["164"]},{"label":"322lb.","partNames":["322"]}]}],"effects":[{"partName":"MCV001","actions":[{"type":"systemToggle","targets":"Cylinder343, Cylinder344, panel_potter, panel_firelite","color":"#0c2c07","brightness":0.2,"disabledTargets":"Cylinder343, Cylinder344, panel_potter, panel_firelite","disabledColor":"#503107","disabledBrightness":0.1}]},{"partName":"activator","actions":[{"type":"gas","target":"Nozzle_Spray","delaySeconds":10,"durationSeconds":10,"color":"#ffee88","brightness":1.5,"strobeTarget":"flasher"}]}],"gasSettings":{"direction":"out","spread":0.3,"speed":0.35,"count":55,"intervalMs":50,"coneAngle":155,"facingAngle":0,"particleSize":0.38,"maxDistance":20},"flashSettings":{"pulseIntervalMs":400,"pulseDurationMs":250,"intensity":6,"color":"#ffffff"},"abortPartName":"Abort_POT, Abort_NBG","tutorialSteps":[{"text":"Turn on the system.","partName":"MCV001"},{"text":"Activate the system.","partName":"Cube001, Cylinder344, activator"},{"text":"Click and hold abort to reset the discharge count down.","partName":"Plane, Abort_NGB, Abort_POT"}]};
 const gasSettings = Object.assign({ direction: 'up', spread: 0.6, speed: 0.8, count: 16, intervalMs: 0, coneAngle: 360, facingAngle: 0, particleSize: 0.12, maxDistance: 1 }, EMBEDDED_PACKAGE.gasSettings || {});
 const flashSettings = Object.assign({ pulseIntervalMs: 400, pulseDurationMs: 250, intensity: 6, color: '#ffffff' }, EMBEDDED_PACKAGE.flashSettings || {});
 let abortPartName = EMBEDDED_PACKAGE.abortPartName || '';
@@ -156,6 +207,46 @@ scene.background = new THREE.Color(0xeceef2);
 
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.01, 1000);
 camera.position.set(2.5, 1.8, 2.5);
+const DEFAULT_FOV = 45;
+const DEFAULT_CAM_POS = new THREE.Vector3(2.5, 1.8, 2.5);
+function snapToView(axis) {
+  if (!currentModel) return;
+  const box = new THREE.Box3().setFromObject(currentModel);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  const dist = maxDim * 25;
+  camera.near = Math.max(0.01, dist - maxDim * 3);
+  camera.far = dist + maxDim * 3;
+  camera.fov = 2;
+  camera.updateProjectionMatrix();
+  let dir;
+  if (axis === 'top') dir = new THREE.Vector3(0, 1, 0.0001);
+  else if (axis === 'side') dir = new THREE.Vector3(1, 0, 0);
+  else dir = new THREE.Vector3(0, 0, 1);
+  camera.position.copy(center).addScaledVector(dir.normalize(), dist);
+  camera.lookAt(center);
+  controls.target.copy(center);
+  controls.update();
+}
+function resetToPerspective() {
+  camera.near = 0.01;
+  camera.far = 1000;
+  camera.fov = DEFAULT_FOV;
+  camera.updateProjectionMatrix();
+  camera.position.copy(DEFAULT_CAM_POS);
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+document.querySelectorAll('#viewButtons button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#viewButtons button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const view = btn.dataset.view;
+    if (view === 'perspective') resetToPerspective();
+    else snapToView(view);
+  });
+});
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -435,8 +526,14 @@ function setupAbortHold(model) {
     pointer2.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     pointer2.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster2.setFromCamera(pointer2, camera);
-    const hit = raycaster2.intersectObject(model, true)[0];
-    return hit && findMatchingAncestorName(hit.object, new Set(names));
+    // Check every intersection along the ray, not just the closest one — if
+    // the abort button is positioned behind or overlapping other geometry
+    // from some angles, the closest hit alone could miss it entirely.
+    const hits = raycaster2.intersectObject(model, true);
+    const matchedHit = hits.find(h => findMatchingAncestorName(h.object, new Set(names)));
+    const matched = matchedHit ? findMatchingAncestorName(matchedHit.object, new Set(names)) : false;
+    console.log('[abort] configured names:', names, '| closest hit:', hits[0] ? (hits[0].object.name || '(unnamed mesh)') : 'nothing', '| total hits along ray:', hits.length, '| matched:', matched);
+    return matched;
   }
   renderer.domElement.addEventListener('pointerdown', (e) => { if (testHit(e)) abortHeld = true; });
   // Releasing the abort button restarts the countdown from its full
@@ -469,8 +566,17 @@ function runDelayedGas(model, action, trig) {
   const totalMs = (action.delaySeconds ?? 0) * 1000;
   const gasDurationMs = (action.durationSeconds ?? 10) * 1000;
   const fire = () => {
-    const pos = getPartWorldCenter(model, action.target || trig.partName);
-    if (pos) triggerGasEffect(pos, gasDurationMs, gasSettings);
+    // Multiple nozzles: comma-separate part names in the target field and
+    // every one discharges together, using the same gas settings.
+    const nozzleNames = (action.target || trig.partName).split(',').map(s => s.trim()).filter(Boolean);
+    nozzleNames.forEach(name => {
+      const pos = getPartWorldCenter(model, name);
+      if (pos) {
+        triggerGasEffect(pos, gasDurationMs, gasSettings);
+      } else {
+        console.warn('[effects] Gas: no part named "' + name + '" found — check spelling/case.');
+      }
+    });
     // Optional: start a strobe at the exact moment discharge actually
     // begins (after the countdown), and stop it when discharge ends —
     // keeps the flash genuinely synced instead of firing on click.
@@ -527,6 +633,151 @@ function resetSystem(model) {
   hideCountdown();
   stopAllStrobes();
   systemMode = 'off';
+}
+
+// --- Guided System Tutorial ---
+let detectedAnimationClips = [];
+let animMixer = null;
+let tutorialSteps = [];
+let tutorialActive = false;
+let tutorialStepIndex = -1;
+let tutorialHighlightEntries = null;
+
+function highlightTutorialPart(model, partNameField) {
+  clearTutorialHighlight();
+  const meshEntries = [];
+  const lights = [];
+  // A step's part field can list several candidate names, comma-separated —
+  // useful when different options expose differently-named equivalents (two
+  // possible pull stations, say). Highlight whichever is actually visible.
+  const candidates = (partNameField || '').split(',').map(s => s.trim()).filter(Boolean);
+  const partName = candidates.find(n => isPartVisible(model, n)) || candidates[0];
+  if (!partName) return;
+  model.traverse(obj => {
+    if (findMatchingAncestorName(obj, new Set([partName])) !== partName) return;
+    if (obj.isMesh && obj.material) {
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach(m => {
+        if (m.emissive) {
+          meshEntries.push({ material: m, originalEmissive: m.emissive.clone(), originalIntensity: m.emissiveIntensity });
+          m.emissive.set('#ffcc00');
+        }
+      });
+      const box = new THREE.Box3().setFromObject(obj);
+      const center = box.getCenter(new THREE.Vector3());
+      const light = new THREE.PointLight(0xffcc00, 2, 1.5);
+      light.position.copy(center);
+      scene.add(light);
+      lights.push(light);
+    }
+  });
+  tutorialHighlightEntries = { meshEntries, lights };
+}
+
+function clearTutorialHighlight() {
+  if (!tutorialHighlightEntries) return;
+  tutorialHighlightEntries.meshEntries.forEach(({ material, originalEmissive, originalIntensity }) => {
+    material.emissive.copy(originalEmissive);
+    material.emissiveIntensity = originalIntensity ?? 1;
+  });
+  tutorialHighlightEntries.lights.forEach(l => scene.remove(l));
+  tutorialHighlightEntries = null;
+}
+
+function updateTutorialPulse() {
+  if (!tutorialHighlightEntries) return;
+  const pulse = 1.2 + Math.sin(performance.now() / 250) * 1.0;
+  tutorialHighlightEntries.meshEntries.forEach(({ material }) => { material.emissiveIntensity = Math.max(0.2, pulse); });
+  tutorialHighlightEntries.lights.forEach(l => { l.intensity = Math.max(0.5, pulse * 1.5); });
+}
+
+function playAnimationClip(clipName, direction) {
+  if (!animMixer || !currentModel || !clipName) return;
+  const clip = detectedAnimationClips.find(c => c.name === clipName);
+  if (!clip) return;
+  const action = animMixer.clipAction(clip);
+  action.reset();
+  action.setLoop(THREE.LoopOnce);
+  action.clampWhenFinished = true;
+  action.timeScale = direction;
+  if (direction < 0) action.time = clip.duration;
+  action.play();
+}
+
+function updateTutorialNavButtons() {
+  const backBtn = document.getElementById('tutorialBackBtn');
+  const fwdBtn = document.getElementById('tutorialForwardBtn');
+  if (backBtn) backBtn.disabled = tutorialStepIndex <= 0;
+  if (fwdBtn) fwdBtn.disabled = tutorialStepIndex >= tutorialSteps.length - 1;
+}
+
+function showTutorialStep(model, i) {
+  if (i < 0) i = 0;
+  if (i >= tutorialSteps.length) { endTutorial(); return; }
+  tutorialStepIndex = i;
+  const step = tutorialSteps[i];
+  document.getElementById('tutorialBannerText').textContent = 'Step ' + (i + 1) + ': ' + step.text;
+  document.getElementById('tutorialBanner').style.display = 'flex';
+  highlightTutorialPart(model, step.partName);
+  updateTutorialNavButtons();
+}
+
+function startTutorial(model) {
+  if (!tutorialSteps.length) return;
+  // Always begin the tutorial in the normal 3D view, regardless of whatever
+  // Front/Top/Side view might have been left active.
+  resetToPerspective();
+  document.querySelectorAll('#viewButtons button[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === 'perspective'));
+  tutorialActive = true;
+  showTutorialStep(model, 0);
+}
+
+// Advancing (by clicking the right part, or the Forward button) plays that
+// step's own animation clip forward before moving on — e.g. the cap
+// animates open as you "complete" the step that names it.
+function advanceTutorial(model) {
+  const completedStep = tutorialSteps[tutorialStepIndex];
+  if (completedStep && completedStep.animationClip) playAnimationClip(completedStep.animationClip, 1);
+  showTutorialStep(model, tutorialStepIndex + 1);
+}
+
+// Going back undoes the transition that led to the current step — that's
+// the PREVIOUS step's animation, played in reverse — then shows it again.
+function tutorialGoBack(model) {
+  if (tutorialStepIndex <= 0) return;
+  const prevStep = tutorialSteps[tutorialStepIndex - 1];
+  if (prevStep && prevStep.animationClip) playAnimationClip(prevStep.animationClip, -1);
+  showTutorialStep(model, tutorialStepIndex - 1);
+}
+
+function endTutorial() {
+  tutorialActive = false;
+  tutorialStepIndex = -1;
+  clearTutorialHighlight();
+  const banner = document.getElementById('tutorialBanner');
+  if (banner) banner.style.display = 'none';
+}
+
+document.getElementById('tutorialSkipBtn').addEventListener('click', endTutorial);
+document.getElementById('tutorialBackBtn').addEventListener('click', () => { if (currentModel) tutorialGoBack(currentModel); });
+document.getElementById('tutorialForwardBtn').addEventListener('click', () => { if (currentModel) advanceTutorial(currentModel); });
+
+function setupTutorialClickAdvance(model) {
+  const tutRaycaster = new THREE.Raycaster();
+  const tutPointer = new THREE.Vector2();
+  renderer.domElement.addEventListener('click', (event) => {
+    if (!tutorialActive) return;
+    const step = tutorialSteps[tutorialStepIndex];
+    if (!step) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    tutPointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    tutPointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    tutRaycaster.setFromCamera(tutPointer, camera);
+    const hit = tutRaycaster.intersectObject(model, true)[0];
+    if (!hit) return;
+    const candidateNames = (step.partName || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (findMatchingAncestorName(hit.object, new Set(candidateNames))) advanceTutorial(model);
+  });
 }
 
 // Runs every action attached to a clicked trigger part, in order.
@@ -796,6 +1047,14 @@ function escapeHtml(s) {
   return div.innerHTML;
 }
 
+// Converts safe [text](url) markdown-style links to real <a> tags, after
+// escaping everything else. Only http(s) URLs are recognized, so no raw
+// HTML or javascript: URIs can ever get through.
+function renderDescriptionHtml(text) {
+  const escaped = escapeHtml(text || '');
+  return escaped.replace(/[([^]]+)]((https?://[^s)]+))/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+}
+
 function addCallout(localPoint, title, description, number, followPartNames, optionScope) {
   const dotEl = document.createElement('div');
   dotEl.className = 'callout-dot';
@@ -805,7 +1064,7 @@ function addCallout(localPoint, title, description, number, followPartNames, opt
   const domEl = document.createElement('div');
   domEl.className = 'callout-label';
   domEl.innerHTML = '<div class="co-title">' + escapeHtml(title || '') + '</div>' +
-    (description ? '<div class="co-desc">' + escapeHtml(description) + '</div>' : '');
+    (description ? '<div class="co-desc">' + renderDescriptionHtml(description) + '</div>' : '');
   overlay.appendChild(domEl);
 
   const calloutObj = { point: localPoint, domEl, dotEl, visible: false, followPartNames: followPartNames || [], optionScope: optionScope || null };
@@ -820,6 +1079,58 @@ function addCallout(localPoint, title, description, number, followPartNames, opt
     e.stopPropagation();
     calloutObj.visible = false;
     domEl.classList.remove('visible');
+  });
+}
+
+// --- Dimension lines: dashed line between two points, animates outward
+// from its center, with a text label at the midpoint ---
+let dimensionLines = [];
+function createDimensionLine(startLocal, endLocal, label, optionScope) {
+  const material = new THREE.LineDashedMaterial({ color: 0x1a1a1a, dashSize: 0.025, gapSize: 0.018, linewidth: 1 });
+  const geometry = new THREE.BufferGeometry();
+  const line = new THREE.Line(geometry, material);
+  currentModel.add(line); // child of the model, so it inherits its scale/position automatically
+
+  const labelEl = document.createElement('div');
+  labelEl.className = 'dimension-label';
+  labelEl.textContent = label;
+  overlay.appendChild(labelEl);
+
+  const dim = { start: startLocal, end: endLocal, label, line, labelEl, optionScope: optionScope || null, animStart: performance.now(), animDuration: 900 };
+  dimensionLines.push(dim);
+  return dim;
+}
+function updateDimensionLineGeometry(dim) {
+  const t = Math.min(1, (performance.now() - dim.animStart) / dim.animDuration);
+  const eased = 1 - Math.pow(1 - t, 3);
+  const mid = new THREE.Vector3().addVectors(dim.start, dim.end).multiplyScalar(0.5);
+  const curStart = new THREE.Vector3().lerpVectors(mid, dim.start, eased);
+  const curEnd = new THREE.Vector3().lerpVectors(mid, dim.end, eased);
+  dim.line.geometry.setFromPoints([curStart, curEnd]);
+  dim.line.computeLineDistances();
+  if (t > 0.15) dim.labelEl.classList.add('visible');
+  return t < 1;
+}
+function updateDimensionLines() {
+  if (!currentModel) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  dimensionLines.forEach(dim => {
+    if (dim.optionScope && currentOptionSelections[dim.optionScope.groupLabel] !== dim.optionScope.choiceLabel) {
+      dim.line.visible = false;
+      dim.labelEl.style.display = 'none';
+      return;
+    }
+    dim.line.visible = true;
+    if (dim._animating !== false) dim._animating = updateDimensionLineGeometry(dim);
+    const mid = new THREE.Vector3().addVectors(dim.start, dim.end).multiplyScalar(0.5);
+    currentModel.localToWorld(mid);
+    const screenPoint = mid.clone().project(camera);
+    const behindCamera = screenPoint.z > 1;
+    const x = (screenPoint.x * 0.5 + 0.5) * rect.width;
+    const y = (-screenPoint.y * 0.5 + 0.5) * rect.height;
+    dim.labelEl.style.display = behindCamera ? 'none' : 'block';
+    dim.labelEl.style.left = x + 'px';
+    dim.labelEl.style.top = (y - 14) + 'px';
   });
 }
 
@@ -859,10 +1170,14 @@ function updateCalloutPositions() {
   });
 }
 
-// Nav bar from ?library= / ?exit= — target="_top" breaks out of a cross-origin iframe
+// Nav bar from ?library= / ?exit= / ?instructions= — target="_top" breaks
+// out of a cross-origin iframe. Instructions can be set once in the editor
+// (baked into the export) or passed per-page from Wix page code, same as
+// library/exit — the URL parameter takes priority when both are present.
 const params = new URLSearchParams(window.location.search);
 const libraryUrl = params.get('library');
 const exitUrl = params.get('exit');
+const instructionsText = params.get('instructions') || EMBEDDED_PACKAGE.instructions;
 if (libraryUrl) {
   const a = document.createElement('a');
   a.href = libraryUrl; a.target = '_top'; a.textContent = '← Back to library';
@@ -873,11 +1188,11 @@ if (exitUrl) {
   a.href = exitUrl; a.target = '_top'; a.textContent = 'Exit';
   navBar.appendChild(a);
 }
-if (EMBEDDED_PACKAGE.instructions) {
+if (instructionsText) {
   const btn = document.createElement('button');
   btn.textContent = 'Instructions';
   btn.addEventListener('click', () => {
-    document.getElementById('instructionsText').textContent = EMBEDDED_PACKAGE.instructions;
+    document.getElementById('instructionsText').textContent = instructionsText;
     document.getElementById('instructionsOverlay').classList.add('open');
   });
   navBar.appendChild(btn);
@@ -885,7 +1200,7 @@ if (EMBEDDED_PACKAGE.instructions) {
 document.getElementById('instructionsCloseBtn').addEventListener('click', () => {
   document.getElementById('instructionsOverlay').classList.remove('open');
 });
-if (libraryUrl || exitUrl || EMBEDDED_PACKAGE.instructions) navBar.classList.add('visible');
+if (libraryUrl || exitUrl || instructionsText) navBar.classList.add('visible');
 
 // Load the embedded package immediately — no file picker, no fetch
 const s = EMBEDDED_PACKAGE.shading || {};
@@ -936,10 +1251,26 @@ try {
     const scaledBox = new THREE.Box3().setFromObject(currentModel);
     groundPlane.position.y = scaledBox.min.y - 0.001;
 
+    detectedAnimationClips = gltf.animations || [];
+    animMixer = new THREE.AnimationMixer(currentModel);
+
     (EMBEDDED_PACKAGE.callouts || []).forEach((c, i) => addCallout(new THREE.Vector3(c.x, c.y, c.z), c.title, c.description, i + 1, c.followPartNames, c.optionScope));
+    (EMBEDDED_PACKAGE.dimensionLines || []).forEach(d => createDimensionLine(
+      new THREE.Vector3(d.start.x, d.start.y, d.start.z),
+      new THREE.Vector3(d.end.x, d.end.y, d.end.z),
+      d.label,
+      d.optionScope
+    ));
     setupOptionCyclers(currentModel, EMBEDDED_PACKAGE.optionGroups || []);
     setupEffectTriggers(currentModel, EMBEDDED_PACKAGE.effects || []);
     setupAbortHold(currentModel);
+    setupTutorialClickAdvance(currentModel);
+    tutorialSteps = EMBEDDED_PACKAGE.tutorialSteps || [];
+    const tutorialBtnEl = document.getElementById('tutorialBtn');
+    if (tutorialSteps.length && tutorialBtnEl) {
+      tutorialBtnEl.style.display = 'inline-block';
+      tutorialBtnEl.addEventListener('click', () => startTutorial(currentModel));
+    }
     loadingEl.style.display = 'none';
   }, (err) => {
     console.error(err);
@@ -960,12 +1291,16 @@ function handleResize() {
 new ResizeObserver(handleResize).observe(container);
 window.addEventListener('resize', handleResize);
 
+const animClock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
   updateCalloutPositions();
+  updateDimensionLines();
   updateOptionCyclerPositions();
   updateActiveEffects();
+  updateTutorialPulse();
+  if (animMixer) animMixer.update(animClock.getDelta());
   renderer.render(scene, camera);
 }
 animate();
